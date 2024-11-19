@@ -1,11 +1,11 @@
 import os
 import shutil
-from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit, QPushButton, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit, QPushButton, QVBoxLayout, QLabel, QCheckBox, QHBoxLayout
 from PyQt5.QtCore import Qt, QSettings, pyqtSignal
 
 class FolderMover(QWidget):
     def __init__(self):
-        self.target_path_root = '/Volumes/16T_A/XSK'
+        self.target_path_root = '/Volumes/personal_folder/Download/==XSK=='
         self.current_processing_path = ''
         super().__init__()
         self.initUI()
@@ -13,7 +13,9 @@ class FolderMover(QWidget):
     def initUI(self):
         self.setWindowTitle('A片便捷移动器')
 
-        self.target_path_display = QLineEdit('/Volumes/16T_A/XSK')
+        self.target_path_display = QLineEdit(self.target_path_root)
+        self.create_folder_checkbox = QCheckBox("创建演员文件夹")
+        self.create_folder_checkbox.setChecked(False)
 
         self.folder_name_label = QLabel('片名')
         self.folder_name_display = QLineEdit()
@@ -33,7 +35,10 @@ class FolderMover(QWidget):
         drop_widget.fileDropped.connect(self.process_files)
 
         layout = QVBoxLayout()
-        layout.addWidget(self.target_path_display)
+        horizontal_layout = QHBoxLayout()
+        horizontal_layout.addWidget(self.target_path_display)
+        horizontal_layout.addWidget(self.create_folder_checkbox)
+        layout.addLayout(horizontal_layout)
         layout.addWidget(drop_widget)
         layout.addWidget(self.folder_name_label)
         layout.addWidget(self.folder_name_display)
@@ -55,18 +60,28 @@ class FolderMover(QWidget):
             maybe_actor_name = folder_name.split(' ')[-1]
             self.selected_name_display.setText(maybe_actor_name)
 
-            # try to move folder automatically
-            target_root_path = os.path.join(self.target_path_root, maybe_actor_name)
+            # turn down very long name which could not be actor name
+            if len(maybe_actor_name) > 10:
+                continue
 
-            if os.path.exists(target_root_path):
-                target_folder_path = os.path.join(target_root_path, folder_name)
+            # try to move folder automatically
+            target_actor_path = os.path.join(self.target_path_root, maybe_actor_name)
+
+            if self.create_folder_checkbox.isChecked():
+                if not os.path.exists(target_actor_path):
+                    print(f'create actor folder: {target_actor_path}')
+                    os.mkdir(target_actor_path)
+
+            if os.path.exists(target_actor_path):
+                target_folder_path = os.path.join(target_actor_path, folder_name)
                 if os.path.exists(target_folder_path):
                     print(f'file duplicated {target_folder_path}')
                 else:
                     print(f'move folder {folder_name}')
-                    shutil.move(folder_path, target_root_path)
+                    shutil.move(folder_path, target_actor_path)
 
     def move_folder(self):
+        self._create_targe_root_folder_if_not_exist()
         self.target_path_root = self.target_path_display.text()
         selected_name = self.selected_name_display.text().strip()
         target_path = os.path.join(self.target_path_root, selected_name)
@@ -80,6 +95,7 @@ class FolderMover(QWidget):
             shutil.move(self.current_processing_path, target_path)
 
     def move_folder_no_creation(self):
+        self._create_targe_root_folder_if_not_exist()
         self.target_path_root = self.target_path_display.text()
         selected_name = self.selected_name_display.text().strip()
         target_path = os.path.join(self.target_path_root, selected_name)
@@ -92,6 +108,11 @@ class FolderMover(QWidget):
             print(f'file duplicated {target_folder_path}')
         else:
             shutil.move(self.current_processing_path, target_path)
+
+    def _create_targe_root_folder_if_not_exist(self):
+        if os.path.exists(self.target_path_root):
+            return
+        os.makedirs(self.target_path_root)
 
 
 class DragDropWidget(QLabel):
